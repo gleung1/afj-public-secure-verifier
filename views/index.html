@@ -1,0 +1,26 @@
+<html>
+<head>
+    <script>
+        async function pollData() {
+            let response = await fetch("/polldata")
+            if (response.status === 200) {
+                window.location.replace("/complete")
+            } else {
+                await new Promise(resolve => setTimeout(resolve, 2000))
+                pollData()
+            }
+        }
+        pollData()
+    </script>
+</head>
+    <body style="font-family:verdana;">
+        <h1>Public Secure Verifier</h1>
+        <p><br>Scan the QR code with your wallet.<br>
+        </p>
+        {{ qr|safe }}
+        <p>
+        Direct link if running wallet on this device.<br>
+        <a href = {{ directLink|safe }} title="DeepLink examle">Deeplink example.</a>            
+        </p>
+    </body>
+</html>

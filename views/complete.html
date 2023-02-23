@@ -1,0 +1,18 @@
+<html>
+    <body style="font-family:verdana;">
+        <h1>Public Secure Verifier</h1>
+        <p>Revocation Status:
+            {{ revoke_flag|safe }}
+        <p><br>You provided:<br>
+        </p>
+        <p>Okta ID:
+        {{ okta_id|safe }}
+        </p>
+        <p>Email:
+        {{ email|safe }}
+        </p>
+        <p><br>Return to homepage for new proof request:<br>
+            <a href = "/" title="New proof request">New Proof Request</a>
+        </p>            
+    </body>
+</html>
