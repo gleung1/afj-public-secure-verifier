@@ -13,13 +13,20 @@ RC9PWzBBqYNNXrNpFaBzex:3:CL:26909:ont_id_0.1
 
 ## Running on your local machine
 ### Requirements:
-1. setup NGROK for port 8020 - ngrok http 8020
-2. Build docker image
+
+1. Setup Wallet Agent Service Endpoint:
+- setup NGROK for port 8020 - ngrok http 8020
+- Update serviceEndpoint and serviceEndpointPort variables in the server.ts file. 
+
+2. Setup NodJS Express Application Public Endpoint
+- Update publicEndpoint variable in the server.ts file. 
+
+3. Build docker image
 <pre>
 <code>docker build . -t afj-public-secure-verifier</code>
 </pre>
-3. Run the docker image
+4. Run the docker image
 <pre>
 <code>docker run -p 8020:8020 -p 3000:3000 afj-public-secure-verifier</code>
 </pre>
-4. Visit http://localhost:3000 
+5. Visit http://localhost:3000 
