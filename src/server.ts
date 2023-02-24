@@ -66,7 +66,7 @@ const agentConfig: InitConfig = {
     },
     indyLedgers: [{
         genesisTransactions: ledgerGenesis,
-        //indyNamespace: "candi",
+        //indyNamespace: "CANdy",
         id: ledgerID,
         isProduction: false
     }],
