@@ -126,8 +126,11 @@ app.get('/', async (req, res) => {
     })
 
     const deeplinkurl = ""
-    res.render('index.html', { 'qr': inviteQR, 'directLink': 'didcomm://' + qrCode })
-})
+    const encodedQR = Buffer.from(qrCode, 'utf8').toString('base64')
+
+    res.render('index.html', { 'qr': inviteQR, 'directLink': 'didcomm://aries_invitation?c_i=' + encodedQR })
+ })
+ 
 
 app.get('/polldata', async (req, res) => {
     res.setHeader('Content-Type', 'text/plain;charset=utf-8')
