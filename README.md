@@ -11,6 +11,9 @@ Public Secure Schema ID
 Public Secure Credential Definition ID
 RC9PWzBBqYNNXrNpFaBzex:3:CL:26909:ont_id_0.1
 
+### Supports
+This application is using AFJ v0.3.3 with AIP 2.0 supports.
+
 ## Running on your local machine
 ### Requirements:
 

@@ -6,7 +6,6 @@ import {
     ConnectionStateChangedEvent,
     DidExchangeState,
     Agent,
-    InitConfig,
     ProofAttributeInfo,
     ProofEventTypes,
     ProofStateChangedEvent,
@@ -15,24 +14,30 @@ import {
     ConsoleLogger,
     LogLevel,
     AutoAcceptProof,
-    ProofRecord,
-    IndyRevocationInterval
+    IndyRevocationInterval,
+    V2PresentationMessage
 } from '@aries-framework/core'
+
 import { HttpInboundTransport, agentDependencies } from '@aries-framework/node'
+import { DidCommMessageRepository } from '@aries-framework/core/build/storage'
+
 
 var qrc = require('qrcode')
+
+let GlobalSessionMap = new Map()
+
 const decode = (str: string): string => Buffer.from(str, 'base64').toString('binary')
 
 //NodeJS Express Application
 const publicEndpoint ="http://192.168.2.177:3000/getqr/"
 
 //Wallet Agent Service Endpoint - for wallet commnication
-const serviceEndpointPort = 8020                // needs to match your ngrok session
-var serviceEndpoint: string = '5d97e672dfca.ngrok.io'
+const serviceEndpointPort = 8020   // needs to match your ngrok session
+var serviceEndpoint: string = 'https://0156254e7fb7.ngrok.io'
 
 const env = process.env
 
-const walletLabel = 'verifier'
+const walletLabel = 'verifier2'
 const walletKey = 'secret00000000000000000000'
 const listenPort = 3000
 const CANdyDev = `{"reqSignature":{},"txn":{"data":{"data":{"alias":"dev-bc-1","blskey":"14YvF9m4TU4FSkqZQ9gDRr9Ef95aHPuieToEPTmMNEWAqkKB75FfGM3rU25Sfhqkd8nmGMjaJDso9jWgoQdaPqQxscuxu7VcDBmkByiZWtVohk4mRxSownozaaYESpyte4A346wXfGcqxCvUUa9gSyU1qEaM6ss4Z3e5pc39hzdekAq","blskey_pop":"RXmiB6JYFKU6RJwdhfwsH9mGSJx4X8s2Dsk3gHn7Ytajsn6kuaBC6FFiRmzbKkDuYFnMzF81JuRKHC7NBrKgsh8egmyGm5APNya6W6G7XyWwGs2WHX5tUtHeBVogSQEjV8Yq4RfzbpM6TJzPDzu8HyM1Why2nX9f84DMxgxJPMJseo","client_ip":"3.99.10.96","client_port":"9702","node_ip":"3.98.254.147","node_port":"9701","services":["VALIDATOR"]},"dest":"FgRxLSbzVzcMC8ioAbzbzYi1oqhYLUsoFeDewYiw97U"},"metadata":{"from":"7iLf2c7weDopmBLyPPGLHz"},"type":"0"},"txnMetadata":{"seqNo":1,"txnId":"26ac1e1cd83aa136090321bc58877f8563d1ed14cf11e78e1eb46a33692580f1"},"ver":"1"}
@@ -57,28 +62,31 @@ var vAttrs = {
     revoke_flag :''
 }
 
-const agentConfig: InitConfig = {
-    label: walletLabel,
-    logger: new ConsoleLogger(LogLevel.info),
-    walletConfig: {
-        id: walletLabel,
-        key: walletKey
+const agentConfig ={
+    config: {
+        label: walletLabel,
+        logger: new ConsoleLogger(LogLevel.error),
+        walletConfig: {
+            id: walletLabel,
+            key: walletKey
+        },
+        indyLedgers: [{
+            genesisTransactions: ledgerGenesis,
+            indyNamespace: "candi",
+            id: ledgerID,
+            isProduction: false
+        }],
+        autoAcceptConnections: false,
+        autoAcceptProofs: AutoAcceptProof.ContentApproved,
+        connectToIndyLedgersOnStartup: true,
+        endpoints: [serviceEndpoint],
+    
     },
-    indyLedgers: [{
-        genesisTransactions: ledgerGenesis,
-        //indyNamespace: "CANdy",
-        id: ledgerID,
-        isProduction: false
-    }],
-    autoAcceptConnections: false,
-    autoAcceptProofs: AutoAcceptProof.ContentApproved,
-    connectToIndyLedgersOnStartup: true,
-    endpoints: ['https://' + serviceEndpoint],
-
-}
+    dependencies: agentDependencies,
+  }
 
 const AgentAFJ = new AFJAgent()
-AgentAFJ.agent = new Agent(agentConfig, agentDependencies)
+AgentAFJ.agent = new Agent(agentConfig)
 AgentAFJ.agent.registerOutboundTransport(new HttpOutboundTransport())
 AgentAFJ.agent.registerInboundTransport(new HttpInboundTransport({ port: serviceEndpointPort }))
 AgentAFJ.agent.initialize()
@@ -113,6 +121,9 @@ app.get('/', async (req, res) => {
     //Create an OOB proof request.
     const [proofReqId, qrCode] = await getQrcode();
     const qrUrl = publicEndpoint + proofReqId
+    
+    //Create a dummy session store.
+    GlobalSessionMap.set(proofReqId,JSON.parse(qrCode))
 
     console.log("invitation", qrUrl)
     var inviteQR = ''
@@ -125,12 +136,10 @@ app.get('/', async (req, res) => {
         inviteQR = url.replace('viewBox=', 'width="600" height="600" viewBox=')
     })
 
-    const deeplinkurl = ""
-    const encodedQR = Buffer.from(qrCode, 'utf8').toString('base64')
-
-    res.render('index.html', { 'qr': inviteQR, 'directLink': 'didcomm://aries_invitation?c_i=' + encodedQR })
- })
- 
+    console.log(qrCode)
+    const encodedQR = Buffer.from(qrCode, 'utf8').toString('base64') 
+    res.render('index.html', { 'qr': inviteQR, 'directLink': 'didcomm://aries_invitation?d_m=' + encodedQR })
+})
 
 app.get('/polldata', async (req, res) => {
     res.setHeader('Content-Type', 'text/plain;charset=utf-8')
@@ -149,7 +158,6 @@ app.get('/complete', async (req, res) => {
     res.render('complete.html', { 'revoke_flag': vAttrs.revoke_flag, 'okta_id': vAttrs.okta_id, 'email': vAttrs.email })
 })
 
-
 function getUnixTime(time?: number) {
     const epoch = time ? time : Date.now();
     return Math.floor(epoch / 1000);
@@ -160,7 +168,9 @@ async function getQrcode() {
 
     //ODS LAB:
     //const sid = "QcjnAxxbQGex5QmRcYfCRz:2:ontario-test-credential:0.1.3"
+    //const sid = "tzTU3gw6xGsWXYUdMkjjb:2:ontario-test-credential:0.1.3"
     //"cred_def_id": "QcjnAxxbQGex5QmRcYfCRz:3:CL:26959:ontario-test-credential",
+    // city   country 
 
     //Gary Lab:
     //const sid = "PYQeBbSrkxBwVpxH1RmEfE:2:hc-demo-schema:0.16"
@@ -170,6 +180,7 @@ async function getQrcode() {
     const sid = "6ZRC6oXp9svMBFCzmXWtux:2:ps-uid:0.1"
     //Public Secure Credential Definition ID
     //RC9PWzBBqYNNXrNpFaBzex:3:CL:26909:ont_id_0.1
+    //okta_id  email
 
     const attributes: Record<string, ProofAttributeInfo> = {}
     const unixTime = getUnixTime()
@@ -198,32 +209,52 @@ async function getQrcode() {
         ]
     })
 
+    //Create AIP 2 Proof Request
+   let { message, proofRecord } = await AgentAFJ.agent.proofs.createRequest({
+    protocolVersion: 'v2',
+    proofFormats: {
+      indy: {
+        name: 'test-proof-request',
+        version: '2.0',
+        nonce: '12345678901',
+        requestedAttributes: attributes,
+        //requestedPredicates: predicates,
+      },
+    },
+    autoAcceptProof: AutoAcceptProof.ContentApproved,
+  })
 
-    let { proofRecord, requestMessage } = await AgentAFJ.agent.proofs.createOutOfBandRequest({
-        name: "Public Secure Verfication",
-        requestedAttributes: attributes
-    })
-    console.log("Request Message status", requestMessage.toJSON())
+  // Inject Service Decorator 
+  const requestMessage  = await AgentAFJ.agent.oob.createLegacyConnectionlessInvitation({
+       recordId: proofRecord.id,
+       message,
+        domain: serviceEndpoint,
+  })
 
-    var qr = JSON.stringify(requestMessage)
 
-    return [proofRecord.id, qr]
+console.log("REQ MSG is  " + JSON.stringify(requestMessage.message))
+
+var qr = JSON.stringify(requestMessage.message)
+
+return [proofRecord.id, qr]
 
 }
 
 
-//  incoming pattern "http://192.168.2.177:3000/getqr/proofid=" + proofReqId
+//  incoming pattern "http://URL:3000/getqr/proofid=" + proofReqId
 app.get('/getqr/:proofid', async (req, res) => {
 
     //prefer to use session ID instead of proofid.
-    let proofRecord: ProofRecord
-
     console.log(req.params.proofid);
-    proofRecord = await AgentAFJ.agent.proofs.getById(req.params.proofid)
+    const proofMessage = await AgentAFJ.agent.proofs.findRequestMessage(req.params.proofid)
+    
+    console.log("proofMessage " + JSON.stringify(proofMessage))
 
-    console.log("Retreive the request ", proofRecord.requestMessage.toJSON())
-
-    res.json(proofRecord.requestMessage.toJSON())
+    //retrieve from Session. 
+    //const qr = GlobalSessionMap.get(req.params.proofid)
+    //console.log("From session" + JSON.stringify(qr))
+    
+    res.json(proofMessage)
 
 })
 
@@ -233,14 +264,29 @@ AgentAFJ.agent.events.on(ProofEventTypes.ProofStateChanged, async ({ payload }: 
     console.log("Proof verified: ", payload.proofRecord?.isVerified ? 'Verified' : 'not Verified')
 
     if(payload.proofRecord.state === "presentation-received") {
-    const proofData = JSON.parse(decode(payload.proofRecord.presentationMessage.presentationAttachments[0].data.base64))
+
+    var proofResponseMessage = await AgentAFJ.agent.proofs.findPresentationMessage(payload.proofRecord.id)
+
+    const didCommMessageRepository = AgentAFJ.agent.dependencyManager.resolve(DidCommMessageRepository)
+
+    const proofAttachement = await didCommMessageRepository.findAgentMessage(AgentAFJ.agent.context, {
+        associatedRecordId: payload.proofRecord.id,
+        messageClass: V2PresentationMessage,
+      }) 
+    
+    const proofData = JSON.parse(decode(proofAttachement.presentationsAttach[0].data.base64))
+
     vAttrs.verified = true
     vAttrs.okta_id = proofData.requested_proof.revealed_attrs.attr_1.raw
     vAttrs.email = proofData.requested_proof.revealed_attrs.attr_2.raw
     vAttrs.revoke_flag = payload.proofRecord?.isVerified ? "Good standing" : "Revoked"
     console.log("attr_1=", proofData.requested_proof.revealed_attrs.attr_1.raw)
-    console.log("attr_2=", proofData.requested_proof.revealed_attrs.attr_2.raw)
+    console.log("attr_2=", proofData.requested_proof.revealed_attrs.attr_2.raw) 
     }
 })
 
 app.listen(listenPort)
+function AttachmentDataOptions(arg0: {}) {
+    throw new Error('Function not implemented.')
+}
+
