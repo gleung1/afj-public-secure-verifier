@@ -1,6 +1,6 @@
 import express from 'express'
 import process, { config } from 'process'
-import nunjucks from 'nunjucks'
+
 import {
     ConnectionEventTypes,
     ConnectionStateChangedEvent,
@@ -22,18 +22,16 @@ import { HttpInboundTransport, agentDependencies } from '@aries-framework/node'
 import { DidCommMessageRepository } from '@aries-framework/core/build/storage'
 
 
-var qrc = require('qrcode')
+var qrImage = require('qr-image')
 
 let GlobalSessionMap = new Map()
 
-const decode = (str: string): string => Buffer.from(str, 'base64').toString('binary')
-
 //NodeJS Express Application
-const publicEndpoint ="http://192.168.2.177:3000/getqr/"
+const publicEndpoint ="http://192.168.2.171:3000/getqr/"
 
 //Wallet Agent Service Endpoint - for wallet commnication
 const serviceEndpointPort = 8020   // needs to match your ngrok session
-var serviceEndpoint: string = 'https://0156254e7fb7.ngrok.io'
+var serviceEndpoint: string = 'https://d0c9247fca92.ngrok.app'  
 
 const env = process.env
 
@@ -106,12 +104,11 @@ AgentAFJ.agent.events.on<ConnectionStateChangedEvent>(ConnectionEventTypes.Conne
     }
 })
 
-const app = express()
 
-nunjucks.configure('views', {
-    autoescape: true,
-    express: app
-})
+const app = express()
+app.set('view engine', 'ejs');
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
 app.get('/', async (req, res) => {
     vAttrs.verified = false
@@ -127,21 +124,16 @@ app.get('/', async (req, res) => {
 
     console.log("invitation", qrUrl)
     var inviteQR = ''
-    qrc.toString(qrUrl, { type: 'terminal', 'small': true, 'scale': 1 }, function (err: any, url: string) {
-        if (err) console.log('qr error')
-        console.log(url)
-    })
-    qrc.toString(qrUrl, { type: 'svg' }, function (err: any, url: string) {
-        if (err) console.log('qr error')
-        inviteQR = url.replace('viewBox=', 'width="600" height="600" viewBox=')
-    })
 
-    console.log(qrCode)
-    const encodedQR = Buffer.from(qrCode, 'utf8').toString('base64') 
-    res.render('index.html', { 'qr': inviteQR, 'directLink': 'didcomm://aries_invitation?d_m=' + encodedQR })
+    // Generate QR code SVG string
+    // To display raw SVG without escape any characters (without HTML Encode) -  <%- qr %>
+    inviteQR = qrImage.imageSync(qrUrl, { type: 'svg' });  
+
+    const deeplinkurl = ""
+    res.render('qr.ejs', { 'qr': inviteQR.toString(), 'deepLink': 'didcomm://' + qrCode })
 })
 
-app.get('/polldata', async (req, res) => {
+app.get('/statuscheck', async (req, res) => {
     res.setHeader('Content-Type', 'text/plain;charset=utf-8')
     res.setHeader("Cache-Control", "no-cache, must-revalidate")
 
@@ -153,9 +145,9 @@ app.get('/polldata', async (req, res) => {
     }
 })
 
-app.get('/complete', async (req, res) => {
-    console.log("complete")
-    res.render('complete.html', { 'revoke_flag': vAttrs.revoke_flag, 'okta_id': vAttrs.okta_id, 'email': vAttrs.email })
+app.get('/result', async (req, res) => {
+    console.log("result")
+    res.render('result.ejs', { 'revoke_flag': vAttrs.revoke_flag, 'okta_id': vAttrs.okta_id, 'email': vAttrs.email })
 })
 
 function getUnixTime(time?: number) {
@@ -274,6 +266,8 @@ AgentAFJ.agent.events.on(ProofEventTypes.ProofStateChanged, async ({ payload }: 
         messageClass: V2PresentationMessage,
       }) 
     
+    const decode = (str: string): string => Buffer.from(str, 'base64').toString('binary')
+
     const proofData = JSON.parse(decode(proofAttachement.presentationsAttach[0].data.base64))
 
     vAttrs.verified = true

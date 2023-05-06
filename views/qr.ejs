@@ -1,0 +1,33 @@
+<html>
+<head>
+<script>
+    async function statuscheck() {
+        let response = await fetch("/statuscheck")
+        if (response.status === 200) {
+            window.location.replace("/result")
+        } else {
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            statuscheck()
+        }
+    }
+    statuscheck()
+</script>
+
+
+
+</head>
+    <body style="font-family:verdana;">
+        <h1>Public Secure Verifier</h1>
+        <p><br>Scan the QR code with your wallet.<br>
+        </p>
+
+        <div style="width: 600px; height: 600px;">
+            <%- qr %>
+        </div>
+          
+        <p>
+        Deep link URL.<br>
+        <a href =<%= deepLink %> title="DeepLink examle">Deeplink example.</a>            
+        </p>
+    </body>
+</html>

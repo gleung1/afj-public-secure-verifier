@@ -30,6 +30,6 @@ This application is using AFJ v0.3.3 with AIP 2.0 supports.
 </pre>
 4. Run the docker image
 <pre>
-<code>docker run -p 8020:8020 -p 3000:3000 afj-public-secure-verifier</code>
+<code>docker run -p 8020:8020 --name afj-ps-verifier -p 3000:3000 afj-public-secure-verifier</code>
 </pre>
 5. Visit http://localhost:3000 
